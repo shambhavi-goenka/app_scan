@@ -1,0 +1,120 @@
+name: SecureSaaS Security Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  security-regression:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: securesaas
+          MYSQL_USER: securesaas_app
+          MYSQL_PASSWORD: testpassword
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Initialize database schema
+        run: |
+          mysql -h 127.0.0.1 -P 3307 \
+            -u root -prootpassword \
+            < infrastructure/database/init.sql
+
+      - name: Install vulnerable backend dependencies
+        working-directory: apps/vulnerable-app/backend
+        run: npm ci
+
+      - name: Install secure backend dependencies
+        working-directory: apps/secure-app/backend
+        run: npm ci
+
+      - name: Generate CI JWT secret
+        run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Start vulnerable backend
+        working-directory: apps/vulnerable-app/backend
+        env:
+          PORT: 3001
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3307
+          DB_USER: securesaas_app
+          DB_PASSWORD: testpassword
+          DB_NAME: securesaas
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+        run: |
+          npm start > /tmp/vulnerable.log 2>&1 &
+          echo $! > /tmp/vulnerable.pid
+
+      - name: Start secure backend
+        working-directory: apps/secure-app/backend
+        env:
+          PORT: 3002
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3307
+          DB_USER: securesaas_app
+          DB_PASSWORD: testpassword
+          DB_NAME: securesaas
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+        run: |
+          npm start > /tmp/secure.log 2>&1 &
+          echo $! > /tmp/secure.pid
+
+      - name: Wait for APIs
+        run: |
+          wait_for_api() {
+            local port=$1
+            local name=$2
+
+            echo "Waiting for $name on port $port..."
+
+            for attempt in {1..30}; do
+              if curl -fsS "http://127.0.0.1:$port/api/health"; then
+                echo "$name is ready."
+                return 0
+              fi
+
+              sleep 2
+            done
+
+            echo "$name failed to start."
+            if [ "$port" = "3001" ]; then
+              cat /tmp/vulnerable.log
+            else
+              cat /tmp/secure.log
+            fi
+
+            return 1
+          }
+
+          wait_for_api 3001 "Vulnerable API"
+          wait_for_api 3002 "Secure API"
+
+      - name: Test vulnerable implementation
+        run: node --test tests/security/bola.test.js
+
+      - name: Test secure implementation
+        env:
+          API_URL: http://127.0.0.1:3002/api
+        run: node --test tests/security/bola-secure.test.js
