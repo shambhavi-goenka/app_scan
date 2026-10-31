@@ -45,3 +45,33 @@ The current scanner focuses on two BOLA scenarios.
 It does not establish that authentication, session management,
 injection resistance, deployment configuration or other controls
 are secure.
+
+## Application functionality and API scope
+
+### Frontend functionality
+The current frontend supports:
+- Organization registration and login
+- Project creation and listing
+- Opening projects
+- Document creation, listing, and viewing
+- Logout
+
+### Backend-only API capabilities
+The backend also exposes:
+- Project deletion (administrator-only in the secure application)
+- Document editing
+- Document deletion (administrator-only)
+- User creation (administrator-only in the secure application)
+
+These endpoints are tested directly through HTTP requests, independently
+of the frontend. A feature does not need a visible UI control to require
+server-side authorization.
+
+### Security testing scope
+The security tests validate:
+- Authentication and JWT validation
+- Login rate limiting
+- Cross-tenant project and document access
+- Administrator-only operations
+- Client-controlled role assignment
+- Weak JWT secret exploitation in the deliberately vulnerable lab

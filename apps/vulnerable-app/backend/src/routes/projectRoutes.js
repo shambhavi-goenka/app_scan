@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 import pool from "../config/database.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
@@ -122,12 +121,6 @@ router.get("/:id", async (req, res) => {
 // DELETE PROJECT
 // This operation is tenant-scoped and administrator-only.
 router.delete("/:id", async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({
-      error: "Administrator access required"
-    });
-  }
-
   const projectId = Number(req.params.id);
 
   if (!Number.isSafeInteger(projectId) || projectId < 1) {

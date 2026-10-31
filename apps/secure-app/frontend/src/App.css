@@ -144,3 +144,28 @@ textarea {
 .secondary {
   width: auto;
 }
+
+.app-navigation {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.app-navigation button.active {
+  background: #2563eb;
+  color: white;
+}
+
+.registration-info {
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.success {
+  color: #15803d;
+  margin: 12px 0;
+}

@@ -121,6 +121,7 @@ router.get("/:id", async (req, res) => {
 // DELETE PROJECT
 // This operation is tenant-scoped and administrator-only.
 router.delete("/:id", async (req, res) => {
+  // admin check for deleting projects
   if (req.user.role !== "admin") {
     return res.status(403).json({
       error: "Administrator access required"

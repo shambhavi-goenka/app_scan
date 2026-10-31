@@ -1,4 +1,3 @@
-
 import jwt from "jsonwebtoken";
 
 export function authenticateToken(req, res, next) {
@@ -14,9 +13,22 @@ export function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ["HS256"],
       issuer: "securesaas-api",
       audience: "securesaas-client"
     });
+
+    if (
+        !Number.isSafeInteger(Number(decoded.sub)) ||
+        Number(decoded.sub) < 1 ||
+        !Number.isSafeInteger(Number(decoded.organizationId)) ||
+        Number(decoded.organizationId) < 1 ||
+        !["admin", "user"].includes(decoded.role)
+      ) {
+        return res.status(401).json({
+          error: "Invalid token claims"
+        });
+      }
 
     req.user = {
       id: Number(decoded.sub),

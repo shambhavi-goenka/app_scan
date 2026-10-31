@@ -5,6 +5,7 @@ import pool from "./config/database.js";
 import authRoutes from "./routes/authRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(express.json({ limit: "100kb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/documents", documentRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
   res.json({

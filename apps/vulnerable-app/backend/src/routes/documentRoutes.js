@@ -184,6 +184,7 @@ router.put("/:id", async (req, res) => {
 
 // DELETE DOCUMENT
 router.delete("/:id", async (req, res) => {
+  // leave in hehe only admin can delete documents but user can delete project
   if (req.user.role !== "admin") {
     return res.status(403).json({
       error: "Administrator access required"

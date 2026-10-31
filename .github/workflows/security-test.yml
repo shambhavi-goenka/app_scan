@@ -111,10 +111,42 @@ jobs:
           wait_for_api 3001 "Vulnerable API"
           wait_for_api 3002 "Secure API"
 
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm ci
+
       - name: Test vulnerable implementation
+        env:
+          API_URL: http://127.0.0.1:3001/api
+          BOLA_EXPECT_CROSS_TENANT_STATUS: "200"
         run: node --test tests/security/bola.test.js
 
       - name: Test secure implementation
         env:
           API_URL: http://127.0.0.1:3002/api
+          BOLA_EXPECT_CROSS_TENANT_STATUS: "404"
         run: node --test tests/security/bola-secure.test.js
+
+      - name: Run authentication tests against vulnerable implementation
+        env:
+          API_URL: http://127.0.0.1:3001/api
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+        run: node --test tests/security/authentication.test.js
+
+      - name: Run authentication tests against secure implementation
+        env:
+          API_URL: http://127.0.0.1:3002/api
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+        run: node --test tests/security/authentication.test.js
+
+      - name: Test vulnerable app rate limiting
+        env:
+          API_URL: http://127.0.0.1:3001/api
+          EXPECT_RATE_LIMIT: "false"
+        run: node --test tests/security/rate-limit.test.js
+
+      - name: Test secure app rate limiting
+        env:
+          API_URL: http://127.0.0.1:3002/api
+          EXPECT_RATE_LIMIT: "true"
+        run: node --test tests/security/rate-limit.test.js
