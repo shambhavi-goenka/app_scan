@@ -1,0 +1,30 @@
+{
+  "scanner": "SecureSaaS Application Security Scanner",
+  "target": "http://127.0.0.1:3002/api",
+  "scannedAt": "2026-10-31T09:02:37.431Z",
+  "checksPerformed": 2,
+  "vulnerabilitiesFound": 0,
+  "result": "PASS",
+  "findings": [
+    {
+      "id": "BOLA-001",
+      "title": "Cross-tenant project access",
+      "severity": "High",
+      "endpoint": "GET /api/projects/18",
+      "status": 404,
+      "vulnerable": false,
+      "evidence": "Cross-tenant request was rejected with HTTP 404.",
+      "remediation": "Scope project lookups by both project ID and the authenticated user's organization ID."
+    },
+    {
+      "id": "BOLA-002",
+      "title": "Cross-tenant document access",
+      "severity": "High",
+      "endpoint": "GET /api/documents/12",
+      "status": 404,
+      "vulnerable": false,
+      "evidence": "Cross-tenant request was rejected with HTTP 404.",
+      "remediation": "Scope document lookups by both document ID and the authenticated user's organization ID."
+    }
+  ]
+}

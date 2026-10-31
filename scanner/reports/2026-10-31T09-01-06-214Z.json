@@ -1,0 +1,30 @@
+{
+  "scanner": "SecureSaaS Application Security Scanner",
+  "target": "http://127.0.0.1:3001/api",
+  "scannedAt": "2026-10-31T09:01:06.214Z",
+  "checksPerformed": 2,
+  "vulnerabilitiesFound": 2,
+  "result": "VULNERABLE",
+  "findings": [
+    {
+      "id": "BOLA-001",
+      "title": "Cross-tenant project access",
+      "severity": "High",
+      "endpoint": "GET /api/projects/16",
+      "status": 200,
+      "vulnerable": true,
+      "evidence": "Alice successfully retrieved a project belonging to Bob's organization.",
+      "remediation": "Scope project lookups by both project ID and the authenticated user's organization ID."
+    },
+    {
+      "id": "BOLA-002",
+      "title": "Cross-tenant document access",
+      "severity": "High",
+      "endpoint": "GET /api/documents/11",
+      "status": 200,
+      "vulnerable": true,
+      "evidence": "Alice successfully retrieved a document belonging to Bob's organization.",
+      "remediation": "Scope document lookups by both document ID and the authenticated user's organization ID."
+    }
+  ]
+}
