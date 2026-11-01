@@ -6,16 +6,15 @@ import { apiRequest, isSecure } from "./config.js";
 
 // required to delete user from sql for test
 import { createRequire } from "node:module";
-const require = createRequire( new URL("../../apps/secure-app/backend/package.json", import.meta.url) );
-require("dotenv").config({ path: new URL( "../../apps/secure-app/backend/.env", import.meta.url ) });
-const { default: pool } = await import( "../../apps/secure-app/backend/src/config/database.js" );
+const path = isSecure? 'secure':'vulnerable';
+const require = createRequire( new URL(`../../apps/${path}-app/backend/package.json`, import.meta.url) );
+require("dotenv").config({ path: new URL( `../../apps/${path}-app/backend/.env`, import.meta.url ) });
+const { default: pool } = await import( `../../apps/${path}-app/backend/src/config/database.js` );
 after(async () => { await pool.end(); }); // Close database connections after all tests finish
 
 // These must match the actual backend secrets.
 // Never use production secrets here.
-const JWT_SECRET = isSecure
-  ? process.env.SECURE_TEST_JWT_SECRET
-  : process.env.VULNERABLE_TEST_JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
   throw new Error(

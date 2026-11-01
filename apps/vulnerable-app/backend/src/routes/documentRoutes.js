@@ -14,9 +14,9 @@ router.post("/", async (req, res) => {
   if (
     !Number.isSafeInteger(Number(projectId)) ||
     Number(projectId) < 1 ||
-    typeof title !== "string" ||
-    title.trim().length < 1 ||
-    title.trim().length > 200 ||
+    title === undefined || title === null || //vulnerable cause no string check - had to insert string parse
+    String(title).trim().length < 1 ||
+    String(title).trim().length > 200 ||
     typeof content !== "string" ||
     content.length > 20000
   ) {
@@ -48,7 +48,7 @@ router.post("/", async (req, res) => {
         req.user.organizationId,
         Number(projectId),
         req.user.id,
-        title.trim(),
+        String(title).trim(), // - had to insert string parse cause no string check vuln
         content
       ]
     );
@@ -58,7 +58,7 @@ router.post("/", async (req, res) => {
       document: {
         id: result.insertId,
         projectId: Number(projectId),
-        title: title.trim()
+        title: String(title).trim() // - had to insert string parse cause no string check vuln
       }
     });
   } catch (error) {

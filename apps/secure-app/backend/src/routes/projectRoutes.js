@@ -76,11 +76,6 @@ router.get("/", async (req, res) => {
 });
 
 // GET PROJECT BY ID
-// INTENTIONAL LAB VULNERABILITY:
-// The query does not check organization_id.
-// An authenticated user may access another tenant's project
-// if they know or guess its ID.
-// This endpoint is deliberately vulnerable for local testing.
 router.get("/:id", async (req, res) => {
   const projectId = Number(req.params.id);
 
@@ -114,6 +109,56 @@ router.get("/:id", async (req, res) => {
 
     return res.status(500).json({
       error: "Unable to retrieve project"
+    });
+  }
+});
+
+// UPDATE PROJECT BY ID
+router.put("/:id", async (req, res) => {
+  const projectId = Number(req.params.id);
+  const { name, description = "" } = req.body;
+
+  if (
+    !Number.isSafeInteger(projectId) ||
+    projectId < 1 ||
+    typeof name !== "string" ||
+    name.trim().length < 2 ||
+    name.trim().length > 150 ||
+    typeof description !== "string" ||
+    description.length > 5000
+  ) {
+    return res.status(400).json({
+      error: "Invalid project details"
+    });
+  }
+
+  try {
+    const [result] = await pool.execute(
+      `UPDATE projects
+       SET name = ?, description = ?
+       WHERE id = ? AND organization_id = ?`,
+      [
+        name.trim(),
+        description,
+        projectId,
+        req.user.organizationId
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: "Project not found"
+      });
+    }
+
+    return res.json({
+      message: "Project updated"
+    });
+  } catch (error) {
+    console.error("Project update failed:", error.message);
+
+    return res.status(500).json({
+      error: "Unable to update project"
     });
   }
 });

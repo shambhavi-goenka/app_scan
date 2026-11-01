@@ -1,7 +1,8 @@
-import test, { before } from "node:test";
+import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { apiRequest, isSecure } from "./config.js";
+import { recordSecurityResult, exportSecurityResults } from "./reporting.js";
 
 let aliceToken;
 let bobToken;
@@ -11,10 +12,13 @@ let aliceDocumentId;
 let bobDocumentId;
 
 const unique = randomUUID().slice(0, 8);
-const expectedCrossTenantStatus = isSecure ? 404 : 200;
+
+function recordBolaResult({ id, test, method, endpoint, input, expectedStatus, actualStatus, expectedBehavior, actualBehavior, }) {
+  recordSecurityResult({ id, category: "BOLA", test, method, endpoint, input, expectedStatus, actualStatus, expectedBehavior, actualBehavior, passed: actualStatus === expectedStatus, });
+}
 
 async function registerOrganization(organizationName, name, email) {
-  const result = await apiRequest("/auth/register", {
+  const response = await apiRequest("/auth/register", {
     method: "POST",
     body: JSON.stringify({
       organizationName,
@@ -25,14 +29,14 @@ async function registerOrganization(organizationName, name, email) {
   });
 
   assert.equal(
-    result.status,
+    response.status,
     201,
-    `Registration failed: ${JSON.stringify(result.data)}`
+    `Registration failed: ${JSON.stringify(response.data)}`
   );
 
-  assert.ok(result.data.token, "Registration did not return a token");
+  assert.ok(response.data.token, "Registration did not return a token");
 
-  return result.data.token;
+  return response.data.token;
 }
 
 async function createProject(token, name) {
@@ -138,13 +142,25 @@ before(async () => {
 
 test(`BOLA security tests — ${isSecure ? "secure" : "vulnerable"} application`, async (t) => {
   await t.test("allows Alice to access her own project", async () => {
-    const result = await apiRequest(
+    const response = await apiRequest(
       `/projects/${aliceProjectId}`,
       {},
       aliceToken
     );
 
-    assert.equal(result.status, 200, "Alice should be able to access her own project");
+    recordBolaResult({
+      id: "BOLA-001",
+      test: "Current tenant project access",
+      method: "GET",
+      endpoint: `/api/projects/${aliceProjectId}`,
+      input: "Alice's JWT + Alice's project ID",
+      expectedStatus: 200,
+      actualStatus: response.status,
+      expectedBehavior: "Alice should be able to access her own project",
+      actualBehavior: `HTTP ${response.status}`,
+    });
+
+    assert.equal(response.status, 200, "Alice should be able to access her own project");
   });
 
   await t.test("allows Alice to access her own document", async () => {
@@ -154,6 +170,18 @@ test(`BOLA security tests — ${isSecure ? "secure" : "vulnerable"} application`
       aliceToken
     );
 
+    recordBolaResult({
+      id: "BOLA-002",
+      test: "Current tenant document access",
+      method: "GET",
+      endpoint: `/api/documents/${aliceDocumentId}`,
+      input: "Alice's JWT + Alice's document ID",
+      expectedStatus: 200,
+      actualStatus: response.status,
+      expectedBehavior: "Alice should be able to access her own document",
+      actualBehavior: `HTTP ${response.status}`,
+    });
+
     assert.equal(
       response.status,
       200,
@@ -161,77 +189,125 @@ test(`BOLA security tests — ${isSecure ? "secure" : "vulnerable"} application`
     );
   });
 
-  await t.test(
-    isSecure
-      ? "blocks Alice from accessing Bob's project"
-      : "allows Alice to access Bob's project",
-    async () => {
-      const result = await apiRequest(
+  await t.test( isSecure ? "blocks Alice from accessing Bob's project" : "allows Alice to access Bob's project", async () => {
+      const response = await apiRequest(
         `/projects/${bobProjectId}`,
         {},
         aliceToken
       );
 
+      recordBolaResult({
+        id: "BOLA-003",
+        test: "Cross-tenant project access",
+        method: "GET",
+        endpoint: `/api/projects/${bobProjectId}`,
+        input: "Alice's JWT + Bob's project ID",
+        expectedStatus: 404,
+        actualStatus: response.status,
+        expectedBehavior: "Cross-tenant access is rejected",
+        actualBehavior: `HTTP ${response.status}`,
+      });
+
       assert.equal(
-        result.status,
-        expectedCrossTenantStatus,
+        response.status,
+        isSecure? 404: 200, //VULN PASSING
         "Cross-tenant project access did not match the expected security behavior"
       );
     }
   );
 
-  await t.test(
-    isSecure
-      ? "blocks Alice from accessing Bob's document"
-      : "allows Alice to access Bob's document",
-    async () => {
-      const result = await apiRequest(
+  await t.test( isSecure ? "blocks Alice from accessing Bob's document" : "allows Alice to access Bob's document", async () => {
+      const response = await apiRequest(
         `/documents/${bobDocumentId}`,
         {},
         aliceToken
       );
 
+      recordBolaResult({
+        id: "BOLA-004",
+        test: "Cross-tenant document access",
+        method: "GET",
+        endpoint: `/api/documents/${bobDocumentId}`,
+        input: "Alice's JWT + Bob's document ID",
+        expectedStatus: 404,
+        actualStatus: response.status,
+        expectedBehavior: "Cross-tenant access is rejected",
+        actualBehavior: `HTTP ${response.status}`,
+      });
+
       assert.equal(
-        result.status,
-        expectedCrossTenantStatus,
+        response.status,
+        isSecure? 404: 200, //VULN PASSING
         "Cross-tenant document access did not match the expected security behavior"
       );
     }
   );
 
   await t.test(
-    "does not show Bob's project in Alice's project list",
+    "only show Alice's organisation projects in Alice's project list",
     async () => {
-      const result = await apiRequest("/projects", {}, aliceToken);
+      const response = await apiRequest("/projects", {}, aliceToken);
 
-      assert.equal(result.status, 200);
+      assert.equal(response.status, 200);
 
-      const projects = result.data.projects ?? result.data;
+      const projects = response.data.projects ?? response.data;
+
+      recordBolaResult({
+        id: "BOLA-005",
+        test: "Current tenant project access",
+        method: "GET",
+        endpoint: `/api/projects/`,
+        input: "Alice's JWT + All org project IDs",
+        expectedStatus: 200,
+        actualStatus: response.status,
+        expectedBehavior: "Alice should be able to see her organisation's projects only",
+        actualBehavior: `HTTP ${response.status}`,
+      });
 
       assert.ok(
         !projects.some(
           (project) => Number(project.id) === Number(bobProjectId)
         ),
-        "Alice should not see Bob's project in her project list"
+        "Alice should be able to see her organisation's projects only"
       );
     }
   );
 
   await t.test(
-    "does not show Bob's document in Alice's document list",
+    "only show Alice's organisation documents in Alice's project list",
     async () => {
-      const result = await apiRequest("/documents", {}, aliceToken);
+      const response = await apiRequest("/documents", {}, aliceToken);
 
-      assert.equal(result.status, 200);
+      assert.equal(response.status, 200);
 
-      const documents = result.data.documents ?? result.data;
+      const documents = response.data.documents ?? response.data;
+
+      recordBolaResult({
+        id: "BOLA-006",
+        test: "Current tenant document access",
+        method: "GET",
+        endpoint: `/api/documents/`,
+        input: "Alice's JWT + All org document IDs",
+        expectedStatus: 200,
+        actualStatus: response.status,
+        expectedBehavior: "Alice should be able to see her organisation's documents only",
+        actualBehavior: `HTTP ${response.status}`,
+      });
 
       assert.ok(
         !documents.some(
           (document) => Number(document.id) === Number(bobDocumentId)
         ),
-        "Alice should not see Bob's document in her document list"
+        "Alice should be able to see her organisation's documents only"
       );
     }
   );
+});
+
+after(async () => {
+  const filePath = process.env.SECURITY_REPORT_FILE;
+
+  if (filePath) {
+    await exportSecurityResults(filePath);
+  }
 });

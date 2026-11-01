@@ -53,8 +53,16 @@ if (!process.env.JWT_SECRET) {
 
 app.disable("x-powered-by");
 
+const allowedOrigin = "http://localhost:5174";
 app.use(cors({
-  origin: "http://localhost:5174"
+  origin: (origin, callback) => {
+    if (origin === allowedOrigin) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json({ limit: "100kb" }));
@@ -89,9 +97,7 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-app.use("/api/auth", authRoutes);
-
-const PORT = Number(process.env.PORT || 3001);
+const PORT = Number(process.env.PORT || 3002);
 
 // Error page not found
 app.use((req, res) => {

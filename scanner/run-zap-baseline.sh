@@ -1,4 +1,4 @@
-
+```bash
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -14,7 +14,7 @@ mkdir -p "$REPORT_DIR"
 # Targets are accessed from inside the ZAP Docker container.
 VULNERABLE_FRONTEND_URL="http://host.docker.internal:5173"
 SECURE_FRONTEND_URL="http://host.docker.internal:5174"
-# SECURE_FRONTEND_URL="http://host.docker.internal:4174" # build version - change port in frontend/public/sitemap.xml 
+# SECURE_FRONTEND_URL="http://host.docker.internal:4174"
 
 VULNERABLE_API_URL="http://host.docker.internal:3001/api/health"
 SECURE_API_URL="http://host.docker.internal:3002/api/health"
@@ -39,9 +39,7 @@ run_scan() {
         zap-baseline.py \
         -t "$target" \
         -m 2 \
-        -r "${prefix}.html" \
-        -J "${prefix}.json" \
-        -w "${prefix}.md" || status=$?
+        -r "${prefix}.html" || status=$?
 
     if [ "$status" -gt 2 ]; then
         echo "ERROR: ZAP scan failed for $name (exit code $status)."
@@ -51,17 +49,15 @@ run_scan() {
     echo
     echo "Scan completed: $name"
     echo "ZAP exit code: $status"
-    echo "Reports:"
+    echo "HTML report:"
     echo "  $REPORT_DIR/${prefix}.html"
-    echo "  $REPORT_DIR/${prefix}.json"
-    echo "  $REPORT_DIR/${prefix}.md"
 
     if [ "$status" -eq 0 ]; then
         echo "No WARN or FAIL alerts were reported."
     elif [ "$status" -eq 1 ]; then
-        echo "ZAP reported WARN alerts. Review the reports."
+        echo "ZAP reported WARN alerts. Review the report."
     elif [ "$status" -eq 2 ]; then
-        echo "ZAP reported FAIL alerts. Review the reports."
+        echo "ZAP reported FAIL alerts. Review the report."
     fi
 }
 
@@ -76,5 +72,6 @@ run_scan "secure-frontend" "$SECURE_FRONTEND_URL"
 echo
 echo "======================================"
 echo " All ZAP baseline scans completed."
-echo " Reports saved in scanner/reports/"
+echo "Report saved in scanner/reports/"
 echo "======================================"
+```

@@ -1,35 +1,29 @@
-
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { apiRequest, isSecure } from "./config.js";
+import { recordSecurityResult, exportSecurityResults } from "./reporting.js";
 
 // Load the selected backend's environment before importing its database pool.
-const backendPackage = isSecure
-  ? "../../apps/secure-app/backend/package.json"
-  : "../../apps/vulnerable-app/backend/package.json";
-
-const backendEnv = isSecure
-  ? "../../apps/secure-app/backend/.env"
-  : "../../apps/vulnerable-app/backend/.env";
-
-const backendDatabase = isSecure
-  ? "../../apps/secure-app/backend/src/config/database.js"
-  : "../../apps/vulnerable-app/backend/src/config/database.js";
-
-const require = createRequire(new URL(backendPackage, import.meta.url));
-
-require("dotenv").config({
-  path: new URL(backendEnv, import.meta.url)
-});
-
-const { default: pool } = await import(backendDatabase);
+const path = isSecure? 'secure':'vulnerable';
+const require = createRequire( new URL(`../../apps/${path}-app/backend/package.json`, import.meta.url) );
+require("dotenv").config({ path: new URL( `../../apps/${path}-app/backend/.env`, import.meta.url ) });
+const { default: pool } = await import( `../../apps/${path}-app/backend/src/config/database.js` );
 
 after(async () => {
-  await pool.end();
+  await pool.end(); // Close database connections after all tests finish
+
+  const filePath = process.env.SECURITY_REPORT_FILE;
+  if (filePath) {
+    await exportSecurityResults(filePath);
+  }
 });
+
+function recordPasswordSecResult({ id, test, method, endpoint, input, expectedStatus, actualStatus, expectedBehavior, actualBehavior, passed}) {
+  recordSecurityResult({ id, category: "Password Security", test, method, endpoint, input, expectedStatus, actualStatus, expectedBehavior, actualBehavior, passed});
+}
 
 test(`${isSecure ? "secure" : "vulnerable"}: registration hashes passwords and does not expose password data`, async () => {
   const unique = randomUUID();
@@ -49,11 +43,7 @@ test(`${isSecure ? "secure" : "vulnerable"}: registration hashes passwords and d
       })
     });
 
-    assert.equal(
-      response.status,
-      201,
-      `Registration failed: ${JSON.stringify(response.data)}`
-    );
+    assert.equal(response.status, 201, `Registration failed: ${JSON.stringify(response.data)}`);
 
     const user = response.data.user;
 
@@ -77,18 +67,25 @@ test(`${isSecure ? "secure" : "vulnerable"}: registration hashes passwords and d
     const storedHash = rows[0].password_hash;
 
     assert.notEqual(storedHash, password);
-    assert.match(storedHash, /^\$2[aby]\$12\$/);
+    assert.match(storedHash, /^\$2[aby]\$12\$/); //check bycrypt count 12 used for hashing
 
-    assert.equal(
-      await bcrypt.compare(password, storedHash),
-      true
-    );
+    assert.equal( await bcrypt.compare(password, storedHash), true );
+    assert.equal( await bcrypt.compare("WrongPassword123!", storedHash), false );
 
-    assert.equal(
-      await bcrypt.compare("WrongPassword123!", storedHash),
-      false
-    );
-  } finally {
+    recordPasswordSecResult({
+      id: "PS-001",
+      test: "Check password is hashed",
+      method: "POST",
+      endpoint: "/auth/register",
+      input: "New user password",
+      expectedStatus: 201,
+      actualStatus: response.status,
+      expectedBehavior: "Password should be hashed before storing in database",
+      actualBehavior: `HTTP ${response.status}`,
+      passed: /^\$2[aby]\$12\$/.test(storedHash)
+    });
+  } 
+  finally {
     const connection = await pool.getConnection();
 
     try {
@@ -113,5 +110,49 @@ test(`${isSecure ? "secure" : "vulnerable"}: registration hashes passwords and d
     } finally {
       connection.release();
     }
+  }
+});
+
+test(`${isSecure ? "secure" : "vulnerable"}: SQL injection in login`, async () => {
+  const password = "InjectedPassword123!";
+  const hash = await bcrypt.hash(password, 12);
+
+  // The final "- " ensures the SQL comment marker retains
+  // whitespace after email.trim() executes.
+  const hashHex = Buffer.from(hash, "utf8").toString("hex");
+  const injectedEmail =
+    `nonexistent-${Date.now()}' UNION SELECT ` +
+    `999,1,'Injected User','injected@example.test',` +
+    `CONVERT(UNHEX('${hashHex}') USING utf8mb4),'admin' -- -`;
+
+  const response = await apiRequest("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: injectedEmail,
+      password
+    })
+  });
+
+  recordPasswordSecResult({
+    id: "PS-002",
+    test: "Check for SQL injection",
+    method: "POST",
+    endpoint: "/auth/login",
+    input: "SQL in email field",
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Email should be sanitised before processing",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
+
+  if (isSecure) {
+    assert.equal(response.status, 401);
+    assert.equal(response.data.token, undefined);
+  } 
+  else {
+    assert.equal( response.status, 200, `Expected injected login to succeed: ${JSON.stringify(response.data)}` );
+    assert.ok(response.data.token);
+    assert.equal(response.data.user.email, "injected@example.test");
   }
 });
