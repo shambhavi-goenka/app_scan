@@ -1,10 +1,10 @@
 {
   "name": "scanner",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "scan:vulnerable": "API_URL=http://127.0.0.1:3001/api node src/scan.js",
-    "scan:secure": "API_URL=http://127.0.0.1:3002/api node src/scan.js"
+    "scan": "node src/scan.js"
   },
   "keywords": [],
   "author": "",

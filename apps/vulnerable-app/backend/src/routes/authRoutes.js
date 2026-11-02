@@ -17,6 +17,7 @@ function createToken(user) {
     process.env.JWT_SECRET,
     {
       subject: String(user.id),
+      algorithm: "HS256",
       expiresIn: "1h",
       issuer: "securesaas-api",
       audience: "securesaas-client"
@@ -151,14 +152,15 @@ router.post("/login", async (req, res) => {
   }
 
   try {
-    const [users] = await pool.execute(
-      `SELECT id, organization_id, name, email,
-              password_hash, role
-       FROM users
-       WHERE email = ?
-       LIMIT 1`,
-      [email.trim().toLowerCase()]
-    );
+    const query = `
+      SELECT id, organization_id, name, email,
+            password_hash, role
+      FROM users
+      WHERE email = '${email.trim().toLowerCase()}'
+      LIMIT 1
+    `;
+    
+    const [users] = await pool.query(query);
 
     if (users.length === 0) {
       return res.status(401).json({

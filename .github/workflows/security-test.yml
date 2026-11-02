@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   security-regression:
     runs-on: ubuntu-latest
@@ -33,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Initialize database schema
         run: |
@@ -49,6 +52,10 @@ jobs:
         working-directory: apps/secure-app/backend
         run: npm ci
 
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm ci
+
       - name: Generate CI JWT secret
         run: |
           echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
@@ -62,7 +69,7 @@ jobs:
           DB_USER: securesaas_app
           DB_PASSWORD: testpassword
           DB_NAME: securesaas
-          JWT_SECRET: ${{ env.JWT_SECRET }}
+          JWT_SECRET: secret123
         run: |
           npm start > /tmp/vulnerable.log 2>&1 &
           echo $! > /tmp/vulnerable.pid
@@ -99,6 +106,7 @@ jobs:
             done
 
             echo "$name failed to start."
+
             if [ "$port" = "3001" ]; then
               cat /tmp/vulnerable.log
             else
@@ -111,10 +119,20 @@ jobs:
           wait_for_api 3001 "Vulnerable API"
           wait_for_api 3002 "Secure API"
 
-      - name: Test vulnerable implementation
-        run: node --test tests/security/bola.test.js
-
-      - name: Test secure implementation
+      - name: Run security scanner against both implementations
+        working-directory: scanner
         env:
-          API_URL: http://127.0.0.1:3002/api
-        run: node --test tests/security/bola-secure.test.js
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3307
+          DB_USER: securesaas_app
+          DB_PASSWORD: testpassword
+          DB_NAME: securesaas
+        run: npm run scan -- --target both
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports
+          path: scanner/reports/*.md
+          if-no-files-found: warn

@@ -180,16 +180,14 @@ export default function Projects({ token }) {
             <input
               value={documentTitle}
               onChange={(event) => setDocumentTitle(event.target.value)}
-              placeholder="Document title"
-              required
+              placeholder="Document title" //removed required to insert vulnerability
             />
 
             <textarea
               value={documentContent}
               onChange={(event) => setDocumentContent(event.target.value)}
-              placeholder="Document content"
+              placeholder="Document content" //removed required to insert vulnerability
               rows="4"
-              required
             />
 
             <button disabled={loading}>

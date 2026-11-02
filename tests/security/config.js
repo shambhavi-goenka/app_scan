@@ -1,5 +1,11 @@
-export const API_URL =
-  process.env.API_URL || "http://127.0.0.1:3001/api";
+export const APP_MODE = process.env.APP_MODE || "vulnerable";
+
+if (!["vulnerable", "secure"].includes(APP_MODE)) {
+  throw new Error('APP_MODE must be "vulnerable" or "secure"');
+}
+
+export const isSecure = APP_MODE === "secure";
+export const API_URL = isSecure ? "http://127.0.0.1:3002/api" : "http://127.0.0.1:3001/api";
 
 export async function apiRequest(path, options = {}, token = null) {
   const headers = {

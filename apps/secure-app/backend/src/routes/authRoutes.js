@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import pool from "../config/database.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import rateLimit from "express-rate-limit";
 
 const router = Router();
 
@@ -16,12 +17,23 @@ function createToken(user) {
     process.env.JWT_SECRET,
     {
       subject: String(user.id),
+      algorithm: "HS256",
       expiresIn: "1h",
       issuer: "securesaas-api",
       audience: "securesaas-client"
     }
   );
 }
+
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many login attempts. Please try again later.",
+  },
+});
 
 // ORGANIZATION REGISTRATION
 router.post("/register", async (req, res) => {
@@ -135,7 +147,7 @@ router.post("/register", async (req, res) => {
 });
 
 // USER LOGIN
-router.post("/login", async (req, res) => {
+router.post("/login", loginRateLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   if (
