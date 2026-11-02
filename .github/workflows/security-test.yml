@@ -36,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Initialize database schema
         run: |
@@ -121,6 +121,12 @@ jobs:
 
       - name: Run security scanner against both implementations
         working-directory: scanner
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3307
+          DB_USER: securesaas_app
+          DB_PASSWORD: testpassword
+          DB_NAME: securesaas
         run: npm run scan -- --target both
 
       - name: Upload security reports
