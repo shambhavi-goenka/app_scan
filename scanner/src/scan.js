@@ -53,6 +53,9 @@ function runSecurityTests(target, testFile, resultsFile) {
           APP_MODE: config.appMode,
           API_URL: `http://127.0.0.1:${config.port}/api`,
           SECURITY_REPORT_FILE: resultsFile,
+          ...(target === "vulnerable"
+          ? { JWT_SECRET: "secret123" }
+          : {}),
         },
         stdio: "inherit",
       }
