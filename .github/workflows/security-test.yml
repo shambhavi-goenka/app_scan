@@ -69,7 +69,7 @@ jobs:
           DB_USER: securesaas_app
           DB_PASSWORD: testpassword
           DB_NAME: securesaas
-          JWT_SECRET: ${{ env.JWT_SECRET }}
+          JWT_SECRET: secret123
         run: |
           npm start > /tmp/vulnerable.log 2>&1 &
           echo $! > /tmp/vulnerable.pid
