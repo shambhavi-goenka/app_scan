@@ -3,21 +3,44 @@
 ## Summary
 
 - **Target:** vulnerable
-- **Tests recorded:** 17
-- **Passed:** 15
-- **Failed:** 2
+- **Tests recorded:** 45
+- **Passed:** 35
+- **Failed:** 10
 
 ## Test Results
 
 | ID | Test | Description | Request | Input | Expected HTTP | Actual HTTP | Result |
 |---|---|---|---|---|---:|---:|---|
+| AUTH-001 | Check for missing JWT | Missing JWT is rejected | GET /auth/me | N/A | 401 | 401 | PASS |
+| AUTH-002 | Check for tampered JWT | Modified JWT is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-003 | Check for expired JWT | Expired JWT is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-004 | Check for JWT issuer | Incorrect issuer JWT is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-005 | Check for JWT audience | Incorrect JWT audience is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-006 | Check for JWT subject | JWT wihtout subject is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-007 | Check for JWT role | JWT with invalid role is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-008 | Check for JWT organization | JWT with invalid organization ID is rejected | GET /auth/me | JWT | 401 | 401 | PASS |
+| AUTH-009 | Check for JWT algorithm | Non HS384 algorithm based JWT is rejected | GET /auth/me | JWT | 401 | 200 | FAIL |
+| AUTH-010 | Check for failed login rate limiting | More than 5 wrong logins fail | GET /auth/login | JWT | 401,429 | 401, 401, 401, 401, 401, 401, 401 | FAIL |
+| AUTH-011 | Check for JWT secret strength | JWT secret should not not guessed and used to login | POST /users | JWT | 401 | 201 | FAIL |
+| AUTH-012 | Check JWT for a deleted user | JWT of a deleted user is invalid | GET /auth/me | JWT | 401 | 401 | PASS |
+| BOLA-001 | Current tenant project access | Alice should be able to access her own project | GET /api/projects/205 | Alice's JWT + Alice's project ID | 200 | 200 | PASS |
+| BOLA-002 | Current tenant document access | Alice should be able to access her own document | GET /api/documents/152 | Alice's JWT + Alice's document ID | 200 | 200 | PASS |
+| BOLA-003 | Cross-tenant project access | Cross-tenant access is rejected | GET /api/projects/206 | Alice's JWT + Bob's project ID | 404 | 200 | FAIL |
+| BOLA-004 | Cross-tenant document access | Cross-tenant access is rejected | GET /api/documents/153 | Alice's JWT + Bob's document ID | 404 | 200 | FAIL |
+| BOLA-005 | Current tenant project access | Alice should be able to see her organisation's projects only | GET /api/projects/ | Alice's JWT + All org project IDs | 200 | 200 | PASS |
+| BOLA-006 | Current tenant document access | Alice should be able to see her organisation's documents only | GET /api/documents/ | Alice's JWT + All org document IDs | 200 | 200 | PASS |
+| ERR-001 | Unknown API route returns 404 + not found error | Unknown routes should return HTTP 404 with error "Not Found". | N/A /route-that-does-not-exist-1793607443428 | N/A | 404 | 404 | FAIL |
+| ERR-002 | Health endpoint does not expose internal errors | Health endpoint should report the application status without exposing stack traces or SQL queries. | N/A /health | N/A | 200 or 503 | 200 | PASS |
+| ERR-003 | Unknown routes do not expose stack traces | Unknown routes should return 404 without exposing stack traces or internal file paths. | N/A /unknown-1793607443445 | N/A | 404 | 404 | PASS |
+| ERR-004 | CORS allows the configured frontend origin | CORS should allow the configured frontend origin http://localhost:5173. | N/A /api/health | Origin: http://localhost:5173 | 200 | 200 | PASS |
+| ERR-005 | CORS does not allow an untrusted origin | CORS should not return an allow-origin header for an untrusted origin. | N/A /api/health | Origin: http://evil.example | 200 | 200 | PASS |
 | INPV-001 | Create document with empty title | Document creation with empty title is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 400 | PASS |
 | INPV-002 | Create document with non string title | Document creation with non-string title is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 201 | FAIL |
 | INPV-003 | Create document with long title | Document creation with title over 200 chars is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 400 | PASS |
 | INPV-004 | Create document with 200 char title | Document creation title upto 200 char is allowed | POST /api/documents/ | Login JWT + project ID | 201 | 201 | PASS |
 | INPV-005 | Create document with non string content | Document creation with non string content is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 400 | PASS |
 | INPV-006 | Create document with long content | Document creation with over 20,000 char is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 400 | PASS |
-| INPV-007 | Create document with 20,000 char content | Document creation content upto 20,000 is allowed | POST /api/documents/ | Login JWT + project ID | 400 | 201 | FAIL |
+| INPV-007 | Create document with 20,000 char content | Document creation content upto 20,000 is allowed | POST /api/documents/ | Login JWT + project ID | 201 | 201 | PASS |
 | INPV-008 | Create document with invalid ID | Document creation with invalid project ID is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 400 | PASS |
 | INPV-009 | Create project with empty name | Project creation with empty name is forbidden | POST /api/projects/ | Login JWT + project payload | 400 | 400 | PASS |
 | INPV-010 | Create project with non string name | Project creation with non string name is forbidden | POST /api/projects/ | Login JWT + project payload | 400 | 400 | PASS |
@@ -28,8 +51,243 @@
 | INPV-015 | Create project with 5,000 char description | Project creation with description upto 5,000 char is allowed | POST /api/projects/ | Login JWT + project payload | 201 | 201 | PASS |
 | INPV-016 | Create project with missing name | Project creation with missing name is forbidden | POST /api/projects/ | Login JWT + project payload | 400 | 400 | PASS |
 | INPV-017 | Create project with missing description | Project creation with missing description is allowed | POST /api/projects/ | Login JWT + project payload | 201 | 201 | PASS |
+| LP-001 | Client-supplied administrator role | User should have role - user | POST /api/users | Admin creates a user with role: admin | 201 | 201 | FAIL |
+| LP-002 | Admin project deletion | Admin should be allowed to delete a project | DELETE /api/projects/207 | Admin JWT + project ID | 200 | 200 | PASS |
+| LP-003 | User project deletion | Normal user must be forbidden from deleting projects | DELETE /api/projects/208 | User JWT + project ID | 403 | 200 | FAIL |
+| PS-001 | Check password is hashed | Password should be hashed before storing in database | POST /auth/register | New user password | 201 | 201 | PASS |
+| PS-002 | Check for SQL injection | Email should be sanitised before processing | POST /auth/login | SQL in email field | 401 | 200 | FAIL |
 
 ## Detailed Results
+
+### AUTH-001 — Check for missing JWT
+
+- **Category:** Authentication
+- **Input:** N/A
+- **Expected behavior:** Missing JWT is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-002 — Check for tampered JWT
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** Modified JWT is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-003 — Check for expired JWT
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** Expired JWT is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-004 — Check for JWT issuer
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** Incorrect issuer JWT is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-005 — Check for JWT audience
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** Incorrect JWT audience is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-006 — Check for JWT subject
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** JWT wihtout subject is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-007 — Check for JWT role
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** JWT with invalid role is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-008 — Check for JWT organization
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** JWT with invalid organization ID is rejected
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### AUTH-009 — Check for JWT algorithm
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** Non HS384 algorithm based JWT is rejected
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 200
+- **Result:** FAIL
+
+### AUTH-010 — Check for failed login rate limiting
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** More than 5 wrong logins fail
+- **Actual behavior:** HTTP 401,401,401,401,401,401,401
+- **Expected HTTP status:** 401,429
+- **Actual HTTP status:** 401, 401, 401, 401, 401, 401, 401
+- **Result:** FAIL
+
+### AUTH-011 — Check for JWT secret strength
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** JWT secret should not not guessed and used to login
+- **Actual behavior:** HTTP 201
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 201
+- **Result:** FAIL
+
+### AUTH-012 — Check JWT for a deleted user
+
+- **Category:** Authentication
+- **Input:** JWT
+- **Expected behavior:** JWT of a deleted user is invalid
+- **Actual behavior:** HTTP 401
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 401
+- **Result:** PASS
+
+### BOLA-001 — Current tenant project access
+
+- **Category:** BOLA
+- **Input:** Alice's JWT + Alice's project ID
+- **Expected behavior:** Alice should be able to access her own project
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### BOLA-002 — Current tenant document access
+
+- **Category:** BOLA
+- **Input:** Alice's JWT + Alice's document ID
+- **Expected behavior:** Alice should be able to access her own document
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### BOLA-003 — Cross-tenant project access
+
+- **Category:** BOLA
+- **Input:** Alice's JWT + Bob's project ID
+- **Expected behavior:** Cross-tenant access is rejected
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 404
+- **Actual HTTP status:** 200
+- **Result:** FAIL
+
+### BOLA-004 — Cross-tenant document access
+
+- **Category:** BOLA
+- **Input:** Alice's JWT + Bob's document ID
+- **Expected behavior:** Cross-tenant access is rejected
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 404
+- **Actual HTTP status:** 200
+- **Result:** FAIL
+
+### BOLA-005 — Current tenant project access
+
+- **Category:** BOLA
+- **Input:** Alice's JWT + All org project IDs
+- **Expected behavior:** Alice should be able to see her organisation's projects only
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### BOLA-006 — Current tenant document access
+
+- **Category:** BOLA
+- **Input:** Alice's JWT + All org document IDs
+- **Expected behavior:** Alice should be able to see her organisation's documents only
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### ERR-001 — Unknown API route returns 404 + not found error
+
+- **Category:** Error handling
+- **Input:** N/A
+- **Expected behavior:** Unknown routes should return HTTP 404 with error "Not Found".
+- **Actual behavior:** HTTP 404, Response: {}
+- **Expected HTTP status:** 404
+- **Actual HTTP status:** 404
+- **Result:** FAIL
+
+### ERR-002 — Health endpoint does not expose internal errors
+
+- **Category:** Error handling
+- **Input:** N/A
+- **Expected behavior:** Health endpoint should report the application status without exposing stack traces or SQL queries.
+- **Actual behavior:** HTTP 200, Response: {"status":"ok","database":"connected"}
+- **Expected HTTP status:** 200 or 503
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### ERR-003 — Unknown routes do not expose stack traces
+
+- **Category:** Error handling
+- **Input:** N/A
+- **Expected behavior:** Unknown routes should return 404 without exposing stack traces or internal file paths.
+- **Actual behavior:** HTTP 404, Response: {}
+- **Expected HTTP status:** 404
+- **Actual HTTP status:** 404
+- **Result:** PASS
+
+### ERR-004 — CORS allows the configured frontend origin
+
+- **Category:** Error handling
+- **Input:** Origin: http://localhost:5173
+- **Expected behavior:** CORS should allow the configured frontend origin http://localhost:5173.
+- **Actual behavior:** HTTP 200, Access-Control-Allow-Origin: http://localhost:5173
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### ERR-005 — CORS does not allow an untrusted origin
+
+- **Category:** Error handling
+- **Input:** Origin: http://evil.example
+- **Expected behavior:** CORS should not return an allow-origin header for an untrusted origin.
+- **Actual behavior:** HTTP 200, Access-Control-Allow-Origin: null
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
 
 ### INPV-001 — Create document with empty title
 
@@ -97,9 +355,9 @@
 - **Input:** Login JWT + project ID
 - **Expected behavior:** Document creation content upto 20,000 is allowed
 - **Actual behavior:** HTTP 201
-- **Expected HTTP status:** 400
+- **Expected HTTP status:** 201
 - **Actual HTTP status:** 201
-- **Result:** FAIL
+- **Result:** PASS
 
 ### INPV-008 — Create document with invalid ID
 
@@ -200,3 +458,53 @@
 - **Expected HTTP status:** 201
 - **Actual HTTP status:** 201
 - **Result:** PASS
+
+### LP-001 — Client-supplied administrator role
+
+- **Category:** Least privilege
+- **Input:** Admin creates a user with role: admin
+- **Expected behavior:** User should have role - user
+- **Actual behavior:** HTTP 201, User Role - admin
+- **Expected HTTP status:** 201
+- **Actual HTTP status:** 201
+- **Result:** FAIL
+
+### LP-002 — Admin project deletion
+
+- **Category:** Least privilege
+- **Input:** Admin JWT + project ID
+- **Expected behavior:** Admin should be allowed to delete a project
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 200
+- **Actual HTTP status:** 200
+- **Result:** PASS
+
+### LP-003 — User project deletion
+
+- **Category:** Least privilege
+- **Input:** User JWT + project ID
+- **Expected behavior:** Normal user must be forbidden from deleting projects
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 403
+- **Actual HTTP status:** 200
+- **Result:** FAIL
+
+### PS-001 — Check password is hashed
+
+- **Category:** Password Security
+- **Input:** New user password
+- **Expected behavior:** Password should be hashed before storing in database
+- **Actual behavior:** HTTP 201
+- **Expected HTTP status:** 201
+- **Actual HTTP status:** 201
+- **Result:** PASS
+
+### PS-002 — Check for SQL injection
+
+- **Category:** Password Security
+- **Input:** SQL in email field
+- **Expected behavior:** Email should be sanitised before processing
+- **Actual behavior:** HTTP 200
+- **Expected HTTP status:** 401
+- **Actual HTTP status:** 200
+- **Result:** FAIL

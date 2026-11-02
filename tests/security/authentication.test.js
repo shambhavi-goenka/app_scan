@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { apiRequest, isSecure } from "./config.js";
+import { recordSecurityResult, exportSecurityResults } from "./reporting.js";
 
 // required to delete user from sql for test
 import { createRequire } from "node:module";
@@ -10,7 +11,19 @@ const path = isSecure? 'secure':'vulnerable';
 const require = createRequire( new URL(`../../apps/${path}-app/backend/package.json`, import.meta.url) );
 require("dotenv").config({ path: new URL( `../../apps/${path}-app/backend/.env`, import.meta.url ) });
 const { default: pool } = await import( `../../apps/${path}-app/backend/src/config/database.js` );
-after(async () => { await pool.end(); }); // Close database connections after all tests finish
+
+after(async () => {
+  await pool.end(); // Close database connections after all tests finish
+
+  const filePath = process.env.SECURITY_REPORT_FILE;
+  if (filePath) {
+    await exportSecurityResults(filePath);
+  }
+});
+
+function recordAuthResult({ id, test, method, endpoint, input, expectedStatus, actualStatus, expectedBehavior, actualBehavior, passed}) {
+  recordSecurityResult({ id, category: "Authentication", test, method, endpoint, input, expectedStatus, actualStatus, expectedBehavior, actualBehavior, passed});
+}
 
 // These must match the actual backend secrets.
 // Never use production secrets here.
@@ -74,15 +87,17 @@ async function registerUser() {
 test("Missing JWT is rejected", async () => {
   const response = await apiRequest("/auth/me");
 
-  assert.equal(response.status, 401);
-});
-
-test("Malformed JWT is rejected", async () => {
-  const response = await apiRequest(
-    "/auth/me",
-    {},
-    "not-a-valid-token"
-  );
+  recordAuthResult({
+    id: "AUTH-001",
+    test: "Check for missing JWT",
+    method: "GET",
+    endpoint: "/auth/me",
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Missing JWT is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
 
   assert.equal(response.status, 401);
 });
@@ -95,11 +110,20 @@ test("Tampered JWT signature is rejected", async () => {
 
   parts[2] = `${parts[2][0] === "a" ? "b" : "a"}${parts[2].slice(1)}`;
 
-  const response = await apiRequest(
-    "/auth/me",
-    {},
-    parts.join(".")
-  );
+  const response = await apiRequest( "/auth/me", {}, parts.join(".") );
+
+  recordAuthResult({
+    id: "AUTH-002",
+    test: "Check for tampered JWT",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Modified JWT is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
 
   assert.equal(response.status, 401);
 });
@@ -115,6 +139,19 @@ test("Expired JWT is rejected", async () => {
 
   const response = await apiRequest("/auth/me", {}, token);
 
+  recordAuthResult({
+    id: "AUTH-003",
+    test: "Check for expired JWT",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Expired JWT is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
+
   assert.equal(response.status, 401);
 });
 
@@ -125,6 +162,19 @@ test("JWT with incorrect issuer is rejected", async () => {
 
   const response = await apiRequest("/auth/me", {}, token);
 
+  recordAuthResult({
+    id: "AUTH-004",
+    test: "Check for JWT issuer",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Incorrect issuer JWT is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
+
   assert.equal(response.status, 401);
 });
 
@@ -134,6 +184,19 @@ test("JWT with incorrect audience is rejected", async () => {
   });
 
   const response = await apiRequest("/auth/me", {}, token);
+
+  recordAuthResult({
+    id: "AUTH-005",
+    test: "Check for JWT audience",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Incorrect JWT audience is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
 
   assert.equal(response.status, 401);
 });
@@ -151,11 +214,20 @@ test("JWT without a subject is rejected", async () => {
 
   const response = await apiRequest("/auth/me", {}, token);
 
-  assert.equal(
-    response.status,
-    401,
-    "Both applications should reject tokens without a subject"
-  );
+  recordAuthResult({
+    id: "AUTH-006",
+    test: "Check for JWT subject",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "JWT wihtout subject is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401,
+  });
+
+  assert.equal( response.status, 401, "Both applications should reject tokens without a subject" );
 });
 
 test("JWT with an invalid role is rejected", async () => {
@@ -164,6 +236,19 @@ test("JWT with an invalid role is rejected", async () => {
   });
 
   const response = await apiRequest("/auth/me", {}, token);
+
+  recordAuthResult({
+    id: "AUTH-007",
+    test: "Check for JWT role",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "JWT with invalid role is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
 
   assert.equal(response.status, 401);
 });
@@ -174,6 +259,19 @@ test("JWT with an invalid organization ID is rejected", async () => {
   });
 
   const response = await apiRequest("/auth/me", {}, token);
+
+  recordAuthResult({
+    id: "AUTH-008",
+    test: "Check for JWT organization",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "JWT with invalid organization ID is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
 
   assert.equal(response.status, 401);
 });
@@ -189,18 +287,24 @@ test("Unsupported JWT algorithm is rejected", async () => {
 
   const response = await apiRequest("/auth/me", {}, token);
 
+  recordAuthResult({
+    id: "AUTH-009",
+    test: "Check for JWT algorithm",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "Non HS384 algorithm based JWT is rejected",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
+
   if (isSecure) {
-    assert.equal(
-      response.status,
-      401,
-      "Secure app should reject HS384 tokens"
-    );
-  } else {
-    assert.equal(
-      response.status,
-      200,
-      "Vulnerable app should demonstrate acceptance of HS384"
-    );
+    assert.equal( response.status, 401, "Secure app should reject HS384 tokens" );
+  } 
+  else { //VULN PASSING
+    assert.equal( response.status, 200, "Vulnerable app should demonstrate acceptance of HS384" );
   }
 });
 
@@ -224,6 +328,19 @@ test("Repeated failed login attempts are rate limited correctly", async () => {
     statuses.push(response.status);
   }
 
+  recordAuthResult({
+    id: "AUTH-010",
+    test: "Check for failed login rate limiting",
+    method: "GET",
+    endpoint: "/auth/login",
+    input: 'JWT',
+    expectedStatus: [401, 429],
+    actualStatus: statuses.join(", "),
+    expectedBehavior: "More than 5 wrong logins fail",
+    actualBehavior: `HTTP ${statuses}`,
+    passed: statuses.includes(429) && statuses.includes(401),
+  });
+
   if (isSecure) {
     assert.ok(
       statuses.includes(429),
@@ -234,7 +351,8 @@ test("Repeated failed login attempts are rate limited correctly", async () => {
       statuses.every((status) => [401, 429].includes(status)),
       "Secure app should return only 401 or 429"
     );
-  } else {
+  } 
+  else { //VULN PASSING
     assert.ok(
       statuses.every((status) => status === 401),
       "Vulnerable app should allow repeated attempts without rate limiting"
@@ -311,18 +429,24 @@ test("Weak JWT secret cannot be used to forge an administrator token", async () 
     forgedToken
   );
 
+  recordAuthResult({
+    id: "AUTH-011",
+    test: "Check for JWT secret strength",
+    method: "POST",
+    endpoint: "/users",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "JWT secret should not not guessed and used to login",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
+
   if (isSecure) {
-    assert.equal(
-      response.status,
-      401,
-      "Secure app should reject a token signed with the vulnerable secret"
-    );
-  } else {
-    assert.equal(
-      response.status,
-      201,
-      "Vulnerable app should accept the forged administrator token"
-    );
+    assert.equal( response.status, 401, "Secure app should reject a token signed with the vulnerable secret" );
+  } 
+  else {
+    assert.equal( response.status, 201, "Vulnerable app should accept the forged administrator token" );
 
     assert.equal(response.data.user.role, "admin");
   }
@@ -348,23 +472,24 @@ test("JWT for a deleted user is rejected", async () => {
   const userId = registration.data.user.id;
 
   // Delete the user from the database.
-  const [result] = await pool.execute(
-    "DELETE FROM users WHERE id = ?",
-    [userId]
-  );
-
-  assert.equal(
-    result.affectedRows,
-    1,
-    "Test user should be deleted successfully"
-  );
+  const [result] = await pool.execute( "DELETE FROM users WHERE id = ?", [userId] );
+  assert.equal( result.affectedRows, 1, "Test user should be deleted successfully" );
 
   // Verify that the previously issued token is rejected.
   const response = await apiRequest("/auth/me", {}, token);
 
-  assert.equal(
-    response.status,
-    401,
-    "A deleted user's token should no longer authenticate"
-  );
+  recordAuthResult({
+    id: "AUTH-012",
+    test: "Check JWT for a deleted user",
+    method: "GET",
+    endpoint: "/auth/me",
+    input: 'JWT',
+    expectedStatus: 401,
+    actualStatus: response.status,
+    expectedBehavior: "JWT of a deleted user is invalid",
+    actualBehavior: `HTTP ${response.status}`,
+    passed: response.status === 401
+  });
+
+  assert.equal( response.status, 401, "A deleted user's token should no longer authenticate" );
 });

@@ -127,11 +127,11 @@ async function scanTarget(target) {
 
   try {
     const testFiles = [
-      // "bola.test.js",
-      // "least-privilege.test.js",
-      // "error-handling.test.js",
-      // "password-security.test.js",
-      // "input-validation.test.js",
+      "bola.test.js",
+      "least-privilege.test.js",
+      "error-handling.test.js",
+      "password-security.test.js",
+      "input-validation.test.js",
       "authentication.test.js"
     ];
 
