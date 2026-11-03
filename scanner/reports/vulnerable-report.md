@@ -23,15 +23,15 @@
 | AUTH-010 | Check for failed login rate limiting | More than 5 wrong logins fail | GET /auth/login | JWT | 401,429 | 401, 401, 401, 401, 401, 401, 401 | FAIL |
 | AUTH-011 | Check for JWT secret strength | JWT secret should not not guessed and used to login | POST /users | JWT | 401 | 201 | FAIL |
 | AUTH-012 | Check JWT for a deleted user | JWT of a deleted user is invalid | GET /auth/me | JWT | 401 | 401 | PASS |
-| BOLA-001 | Current tenant project access | Alice should be able to access her own project | GET /api/projects/205 | Alice's JWT + Alice's project ID | 200 | 200 | PASS |
-| BOLA-002 | Current tenant document access | Alice should be able to access her own document | GET /api/documents/152 | Alice's JWT + Alice's document ID | 200 | 200 | PASS |
-| BOLA-003 | Cross-tenant project access | Cross-tenant access is rejected | GET /api/projects/206 | Alice's JWT + Bob's project ID | 404 | 200 | FAIL |
-| BOLA-004 | Cross-tenant document access | Cross-tenant access is rejected | GET /api/documents/153 | Alice's JWT + Bob's document ID | 404 | 200 | FAIL |
+| BOLA-001 | Current tenant project access | Alice should be able to access her own project | GET /api/projects/237 | Alice's JWT + Alice's project ID | 200 | 200 | PASS |
+| BOLA-002 | Current tenant document access | Alice should be able to access her own document | GET /api/documents/14 | Alice's JWT + Alice's document ID | 200 | 200 | PASS |
+| BOLA-003 | Cross-tenant project access | Cross-tenant access is rejected | GET /api/projects/238 | Alice's JWT + Bob's project ID | 404 | 200 | FAIL |
+| BOLA-004 | Cross-tenant document access | Cross-tenant access is rejected | GET /api/documents/15 | Alice's JWT + Bob's document ID | 404 | 200 | FAIL |
 | BOLA-005 | Current tenant project access | Alice should be able to see her organisation's projects only | GET /api/projects/ | Alice's JWT + All org project IDs | 200 | 200 | PASS |
 | BOLA-006 | Current tenant document access | Alice should be able to see her organisation's documents only | GET /api/documents/ | Alice's JWT + All org document IDs | 200 | 200 | PASS |
-| ERR-001 | Unknown API route returns 404 + not found error | Unknown routes should return HTTP 404 with error "Not Found". | N/A /route-that-does-not-exist-1793607443428 | N/A | 404 | 404 | FAIL |
+| ERR-001 | Unknown API route returns 404 + not found error | Unknown routes should return HTTP 404 with error "Not Found". | N/A /route-that-does-not-exist-1793699048065 | N/A | 404 | 404 | FAIL |
 | ERR-002 | Health endpoint does not expose internal errors | Health endpoint should report the application status without exposing stack traces or SQL queries. | N/A /health | N/A | 200 or 503 | 200 | PASS |
-| ERR-003 | Unknown routes do not expose stack traces | Unknown routes should return 404 without exposing stack traces or internal file paths. | N/A /unknown-1793607443445 | N/A | 404 | 404 | PASS |
+| ERR-003 | Unknown routes do not expose stack traces | Unknown routes should return 404 without exposing stack traces or internal file paths. | N/A /unknown-1793699048075 | N/A | 404 | 404 | PASS |
 | ERR-004 | CORS allows the configured frontend origin | CORS should allow the configured frontend origin http://localhost:5173. | N/A /api/health | Origin: http://localhost:5173 | 200 | 200 | PASS |
 | ERR-005 | CORS does not allow an untrusted origin | CORS should not return an allow-origin header for an untrusted origin. | N/A /api/health | Origin: http://evil.example | 200 | 200 | PASS |
 | INPV-001 | Create document with empty title | Document creation with empty title is forbidden | POST /api/documents/ | Login JWT + project ID | 400 | 400 | PASS |
@@ -52,8 +52,8 @@
 | INPV-016 | Create project with missing name | Project creation with missing name is forbidden | POST /api/projects/ | Login JWT + project payload | 400 | 400 | PASS |
 | INPV-017 | Create project with missing description | Project creation with missing description is allowed | POST /api/projects/ | Login JWT + project payload | 201 | 201 | PASS |
 | LP-001 | Client-supplied administrator role | User should have role - user | POST /api/users | Admin creates a user with role: admin | 201 | 201 | FAIL |
-| LP-002 | Admin project deletion | Admin should be allowed to delete a project | DELETE /api/projects/207 | Admin JWT + project ID | 200 | 200 | PASS |
-| LP-003 | User project deletion | Normal user must be forbidden from deleting projects | DELETE /api/projects/208 | User JWT + project ID | 403 | 200 | FAIL |
+| LP-002 | Admin project deletion | Admin should be allowed to delete a project | DELETE /api/projects/239 | Admin JWT + project ID | 200 | 200 | PASS |
+| LP-003 | User project deletion | Normal user must be forbidden from deleting projects | DELETE /api/projects/240 | User JWT + project ID | 403 | 200 | FAIL |
 | PS-001 | Check password is hashed | Password should be hashed before storing in database | POST /auth/register | New user password | 201 | 201 | PASS |
 | PS-002 | Check for SQL injection | Email should be sanitised before processing | POST /auth/login | SQL in email field | 401 | 200 | FAIL |
 

@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "overrides": {
+    "minimatch": "11.0.1"
+  },
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

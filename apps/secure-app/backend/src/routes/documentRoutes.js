@@ -1,6 +1,7 @@
 import { Router } from "express";
 import pool from "../config/database.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { logSecurityEvent } from "../securityLogger.js";
 
 const router = Router();
 
@@ -184,6 +185,17 @@ router.put("/:id", async (req, res) => {
 // DELETE DOCUMENT
 router.delete("/:id", async (req, res) => {
   if (req.user.role !== "admin") {
+    
+    await logSecurityEvent({
+      event: "authorization.denied",
+      outcome: "failure",
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      reason: "admin_role_required",
+      resourceType: "document",
+      resourceId: Number.isSafeInteger(documentId) ? documentId : null
+    });
+    
     return res.status(403).json({
       error: "Administrator access required"
     });

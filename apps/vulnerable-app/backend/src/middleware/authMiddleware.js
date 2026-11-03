@@ -1,9 +1,18 @@
 import jwt from "jsonwebtoken";
+import { logSecurityEvent } from "../securityLogger.js";
 
-export function authenticateToken(req, res, next) {
+export async function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+
+    await logSecurityEvent({
+      event: "auth.token.rejected",
+      outcome: "failure",
+      reason: "missing_bearer_token",
+      resourceType: "authentication"
+    });
+    
     return res.status(401).json({
       error: "Authentication required"
     });
@@ -24,6 +33,12 @@ export function authenticateToken(req, res, next) {
         Number(decoded.organizationId) < 1 ||
         !["admin", "user"].includes(decoded.role)
       ) {
+        await logSecurityEvent({
+          event: "auth.token.rejected",
+          outcome: "failure",
+          reason: "invalid_token_claims",
+          resourceType: "authentication"
+        });
         return res.status(401).json({
           error: "Invalid token claims"
         });
@@ -36,9 +51,15 @@ export function authenticateToken(req, res, next) {
     };
 
     next();
-  } catch {
-    return res.status(401).json({
-      error: "Invalid or expired token"
+  } 
+  catch {
+    await logSecurityEvent({
+      event: "auth.token.rejected",
+      outcome: "failure",
+      reason: "invalid_or_expired_token",
+      resourceType: "authentication"
     });
+
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
