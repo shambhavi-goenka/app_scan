@@ -287,6 +287,8 @@ test("Unsupported JWT algorithm is rejected", async () => {
 
   const response = await apiRequest("/auth/me", {}, token);
 
+  console.log("HS384 response:", response.status, response.data);
+
   recordAuthResult({
     id: "AUTH-009",
     test: "Check for JWT algorithm",

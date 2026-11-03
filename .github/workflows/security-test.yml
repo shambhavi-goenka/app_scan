@@ -38,6 +38,29 @@ jobs:
         with:
           node-version: 24
 
+      - name: Audit root dependencies
+        run: npm audit --audit-level=high
+
+      - name: Audit test dependencies
+        working-directory: tests
+        run: npm audit --audit-level=high
+
+      - name: Audit vulnerable backend dependencies
+        working-directory: apps/vulnerable-app/backend
+        run: npm audit --audit-level=high
+
+      - name: Audit vulnerable frontend dependencies
+        working-directory: apps/vulnerable-app/frontend
+        run: npm audit --audit-level=high
+
+      - name: Audit secure backend dependencies
+        working-directory: apps/secure-app/backend
+        run: npm audit --audit-level=high
+
+      - name: Audit secure frontend dependencies
+        working-directory: apps/secure-app/frontend
+        run: npm audit --audit-level=high
+
       - name: Initialize database schema
         run: |
           mysql -h 127.0.0.1 -P 3307 \

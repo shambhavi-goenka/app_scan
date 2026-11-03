@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import pool from "../config/database.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { logSecurityEvent } from "../securityLogger.js";
 
 const router = Router();
 
@@ -11,6 +12,15 @@ router.use(authenticateToken);
 // New users are always assigned the "user" role.
 router.post("/", async (req, res) => {
   if (req.user.role !== "admin") {
+    await logSecurityEvent({
+      event: "authorization.denied",
+      outcome: "failure",
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      reason: "admin_role_required",
+      resourceType: "user"
+    });
+
     return res.status(403).json({
       error: "Administrator access required"
     });
@@ -52,6 +62,15 @@ router.post("/", async (req, res) => {
       ]
     );
 
+    await logSecurityEvent({
+      event: "user.create.success",
+      outcome: "success",
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      resourceType: "user",
+      resourceId: result.insertId
+    });
+
     return res.status(201).json({
       message: "User created",
       user: {
@@ -63,10 +82,25 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
+      await logSecurityEvent({
+        event: "user.create.failure",
+        outcome: "failure",
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        reason: "duplicate_email",
+        resourceType: "user"
+      });
       return res.status(409).json({ error: "Email already exists" });
     }
 
-    console.error("User creation failed:", error.message);
+    await logSecurityEvent({
+      event: "user.create.error",
+      outcome: "error",
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      reason: "internal_error",
+      resourceType: "user"
+    });
     return res.status(500).json({ error: "Unable to create user" });
   }
 });

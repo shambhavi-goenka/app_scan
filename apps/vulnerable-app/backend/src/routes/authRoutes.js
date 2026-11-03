@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import pool from "../config/database.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { logSecurityEvent } from "../securityLogger.js";
 
 const router = Router();
 
@@ -163,6 +164,12 @@ router.post("/login", async (req, res) => {
     const [users] = await pool.query(query);
 
     if (users.length === 0) {
+      await logSecurityEvent({
+        event: "auth.login.failure",
+        outcome: "failure",
+        reason: "invalid_credentials",
+        resourceType: "authentication"
+      });
       return res.status(401).json({
         error: "Invalid email or password"
       });
@@ -176,12 +183,30 @@ router.post("/login", async (req, res) => {
     );
 
     if (!passwordMatches) {
+      await logSecurityEvent({
+        event: "auth.login.failure",
+        outcome: "failure",
+        userId: Number(user.id),
+        organizationId: Number(user.organization_id),
+        reason: "invalid_credentials",
+        resourceType: "user",
+        resourceId: Number(user.id)
+      });
       return res.status(401).json({
         error: "Invalid email or password"
       });
     }
 
     const token = createToken(user);
+
+    await logSecurityEvent({
+      event: "auth.login.success",
+      outcome: "success",
+      userId: Number(user.id),
+      organizationId: Number(user.organization_id),
+      resourceType: "user",
+      resourceId: Number(user.id)
+    });
 
     return res.json({
       message: "Login successful",
@@ -194,12 +219,15 @@ router.post("/login", async (req, res) => {
         organizationId: user.organization_id
       }
     });
-  } catch (error) {
-    console.error("Login error:", error.message);
-
-    return res.status(500).json({
-      error: "Login failed"
+  } 
+  catch (error) {
+    await logSecurityEvent({
+      event: "auth.login.error",
+      outcome: "error",
+      reason: "internal_error",
+      resourceType: "authentication"
     });
+    return res.status(500).json({ error: "Login failed" });
   }
 });
 

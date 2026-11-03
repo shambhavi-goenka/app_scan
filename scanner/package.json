@@ -2,7 +2,6 @@
   "name": "scanner",
   "version": "1.0.0",
   "type": "module",
-  "main": "index.js",
   "scripts": {
     "scan": "node src/scan.js"
   },

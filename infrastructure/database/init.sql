@@ -72,10 +72,14 @@ CREATE TABLE audit_logs (
     user_id BIGINT UNSIGNED NULL,
     organization_id BIGINT UNSIGNED NULL,
     action VARCHAR(100) NOT NULL,
-    resource_type VARCHAR(100),
-    resource_id BIGINT UNSIGNED,
+    outcome VARCHAR(20) NOT NULL,
+    reason VARCHAR(100) NULL,
+    resource_type VARCHAR(100) NULL,
+    resource_id BIGINT UNSIGNED NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_audit_organization (organization_id),
-    INDEX idx_audit_user (user_id)
+    INDEX idx_audit_user (user_id),
+    INDEX idx_audit_action (action),
+    INDEX idx_audit_created (created_at)
 );

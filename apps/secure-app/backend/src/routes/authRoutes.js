@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../config/database.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import rateLimit from "express-rate-limit";
+import { logSecurityEvent } from "../securityLogger.js";
 
 const router = Router();
 
@@ -131,6 +132,14 @@ router.post("/register", async (req, res) => {
     await connection.rollback();
 
     if (error.code === "ER_DUP_ENTRY") {
+
+      await logSecurityEvent({
+        event: "user.create.failure",
+        outcome: "failure",
+        reason: "duplicate_email",
+        resourceType: "user"
+      });
+
       return res.status(409).json({
         error: "An account with this email already exists"
       });
@@ -172,9 +181,13 @@ router.post("/login", loginRateLimiter, async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(401).json({
-        error: "Invalid email or password"
+      await logSecurityEvent({
+        event: "auth.login.failure",
+        outcome: "failure",
+        reason: "invalid_credentials",
+        resourceType: "authentication"
       });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const user = users[0];
@@ -185,12 +198,28 @@ router.post("/login", loginRateLimiter, async (req, res) => {
     );
 
     if (!passwordMatches) {
-      return res.status(401).json({
-        error: "Invalid email or password"
+      await logSecurityEvent({
+        event: "auth.login.failure",
+        outcome: "failure",
+        userId: Number(user.id),
+        organizationId: Number(user.organization_id),
+        reason: "invalid_credentials",
+        resourceType: "user",
+        resourceId: Number(user.id)
       });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const token = createToken(user);
+
+    await logSecurityEvent({
+      event: "auth.login.success",
+      outcome: "success",
+      userId: Number(user.id),
+      organizationId: Number(user.organization_id),
+      resourceType: "user",
+      resourceId: Number(user.id)
+    });
 
     return res.json({
       message: "Login successful",
@@ -203,12 +232,15 @@ router.post("/login", loginRateLimiter, async (req, res) => {
         organizationId: user.organization_id
       }
     });
-  } catch (error) {
-    console.error("Login error:", error.message);
-
-    return res.status(500).json({
-      error: "Login failed"
+  } 
+  catch (error) {
+    await logSecurityEvent({
+      event: "auth.login.error",
+      outcome: "error",
+      reason: "internal_error",
+      resourceType: "authentication"
     });
+    return res.status(500).json({ error: "Login failed" });
   }
 });
 
