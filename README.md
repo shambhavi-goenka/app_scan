@@ -1,4 +1,4 @@
-# SecureSaaS — Multi-Tenant Application Security Assessment
+# Multi-Tenant Application Security Assessment
 
 ## 1. Project Overview
 
@@ -137,7 +137,7 @@ The scanner provides a repeatable way to execute the selected security tests and
 ## 6. Vulnerable vs. Secure Results
 
 The recorded security regression test run produced the following results:
-(refer to the reports for more detaisl on the tests and scans)
+- [`scanner/`](scanner/README.md/)(refer to the reports for a summary and additional details on the findigns.)
 
 | Security scenario | Vulnerable application | Secure application |
 |---|---|---|
